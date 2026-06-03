@@ -1,6 +1,6 @@
 <template>
   <div class="slide-verify" :class="{ 'success': verified, 'error': verifyError }">
-    <div class="verify-track">
+    <div class="verify-track" ref="trackRef">
       <div class="verify-bg">
         <div class="puzzle-block" :style="{ left: puzzlePosition + 'px' }"></div>
       </div>
@@ -26,10 +26,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 
 const emit = defineEmits(['verified'])
 
+const trackRef = ref(null)
 const trackWidth = ref(300)
 const sliderWidth = 50
 const puzzleWidth = 40
@@ -42,8 +43,16 @@ const verifyError = ref(false)
 let startX = 0
 let startPosition = 0
 
+const measureTrack = () => {
+  if (trackRef.value) {
+    trackWidth.value = trackRef.value.offsetWidth
+  }
+}
+
 const generatePuzzle = () => {
+  measureTrack()
   const maxPosition = trackWidth.value - puzzleWidth - sliderWidth
+  if (maxPosition < 20) return
   puzzlePosition.value = Math.floor(Math.random() * maxPosition) + 20
   sliderPosition.value = 0
   verified.value = false
@@ -108,7 +117,14 @@ const reset = () => {
 defineExpose({ reset, verified })
 
 onMounted(() => {
-  generatePuzzle()
+  nextTick(() => {
+    generatePuzzle()
+  })
+  window.addEventListener('resize', measureTrack)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', measureTrack)
 })
 
 watch(verified, (val) => {

@@ -185,19 +185,26 @@ app.post('/api/register', async (req, res) => {
 
     try {
       db.run('INSERT INTO users (username, email, password) VALUES (?, ?, ?)', [username, email, hashedPassword])
-      saveDb()
-      res.json({ message: '注册成功' })
     } catch (error) {
-      if (error.message.includes('UNIQUE constraint failed')) {
+      console.error('SQL插入错误:', error)
+      if (error.message && error.message.includes('UNIQUE constraint failed')) {
         if (error.message.includes('email')) {
-          res.status(400).json({ error: '邮箱已被注册' })
+          return res.status(400).json({ error: '邮箱已被注册' })
         } else {
-          res.status(400).json({ error: '用户名已存在' })
+          return res.status(400).json({ error: '用户名已存在' })
         }
-      } else {
-        res.status(400).json({ error: '注册失败' })
       }
+      return res.status(400).json({ error: '注册失败，请稍后重试' })
     }
+
+    try {
+      saveDb()
+    } catch (error) {
+      console.error('数据库保存错误:', error)
+      return res.status(500).json({ error: '服务器错误，请稍后重试' })
+    }
+
+    res.json({ message: '注册成功' })
   } catch (error) {
     res.status(500).json({ error: '服务器错误' })
   }
