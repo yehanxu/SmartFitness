@@ -2,22 +2,39 @@
   <div class="profile-container">
     <div class="profile-card">
       <div class="profile-header">
-        <div class="avatar">
-          <svg v-if="userInfo.gender === 'male'" viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-            <path d="M16 11.79A5 5 0 1 1 12.21 7"/>
-          </svg>
-          <svg v-else-if="userInfo.gender === 'female'" viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-            <path d="M18 14.79A5 5 0 1 1 12.21 10"/>
-            <path d="M12 14.79V17"/>
-          </svg>
-          <svg v-else viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-          </svg>
+        <div class="avatar-wrapper" @click="triggerUpload">
+          <div class="avatar" v-if="!avatarPreview && !userInfo.avatar">
+            <svg v-if="userInfo.gender === 'male'" viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+              <path d="M16 11.79A5 5 0 1 1 12.21 7"/>
+            </svg>
+            <svg v-else-if="userInfo.gender === 'female'" viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+              <path d="M18 14.79A5 5 0 1 1 12.21 10"/>
+              <path d="M12 14.79V17"/>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <img v-else :src="avatarPreview || `${API_BASE.replace('/api', '')}${userInfo.avatar}`" class="avatar-img" />
+          <div class="avatar-overlay">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+            <span>更换头像</span>
+          </div>
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            class="file-input-hidden"
+            @change="handleFileSelect"
+          />
         </div>
         <div class="user-info">
           <h2>{{ userInfo.real_name || userInfo.username }}</h2>
@@ -143,11 +160,15 @@ const props = defineProps({
 const emit = defineEmits(['profile-updated'])
 
 const API_BASE = 'http://localhost:3001/api'
+const API_HOST = 'http://localhost:3001'
 
 const userInfo = ref({ ...props.user })
 const loading = ref(false)
 const message = ref('')
 const messageType = ref('success')
+const avatarUploading = ref(false)
+const avatarPreview = ref('')
+const fileInput = ref(null)
 
 const sportsOptions = [
   { value: 'running', label: '跑步', icon: '🏃' },
@@ -189,6 +210,65 @@ const toggleSport = (sport) => {
     selectedSports.value.splice(index, 1)
   } else {
     selectedSports.value.push(sport)
+  }
+}
+
+const triggerUpload = () => {
+  fileInput.value?.click()
+}
+
+const handleFileSelect = (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  // 本地预览
+  const reader = new FileReader()
+  reader.onload = (ev) => {
+    avatarPreview.value = ev.target.result
+  }
+  reader.readAsDataURL(file)
+
+  // 立即上传
+  uploadAvatar(file)
+  // 重置 input 以便选择同一文件
+  e.target.value = ''
+}
+
+const uploadAvatar = async (file) => {
+  avatarUploading.value = true
+  message.value = ''
+
+  try {
+    const formData = new FormData()
+    formData.append('avatar', file)
+
+    const res = await fetch(`${API_BASE}/upload-avatar/${userInfo.value.id}`, {
+      method: 'POST',
+      body: formData
+    })
+
+    const data = await res.json()
+
+    if (!res.ok) {
+      message.value = data.error || '上传失败'
+      messageType.value = 'error'
+      avatarPreview.value = ''
+      return
+    }
+
+    message.value = '头像上传成功'
+    messageType.value = 'success'
+    userInfo.value.avatar = data.avatar
+
+    // 更新 localStorage
+    localStorage.setItem('currentUser', JSON.stringify(userInfo.value))
+    emit('profile-updated', { ...userInfo.value })
+  } catch (err) {
+    message.value = '网络错误'
+    messageType.value = 'error'
+    avatarPreview.value = ''
+  } finally {
+    avatarUploading.value = false
   }
 }
 
@@ -284,6 +364,51 @@ watch(() => props.user, () => {
   align-items: center;
   justify-content: center;
   color: #fff;
+  overflow: hidden;
+}
+
+.avatar-wrapper {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.avatar-wrapper:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  opacity: 0;
+  transition: opacity 0.25s;
+  gap: 2px;
+}
+
+.avatar-overlay span {
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.file-input-hidden {
+  display: none;
 }
 
 .user-info h2 {

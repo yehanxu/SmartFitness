@@ -58,6 +58,17 @@
           </svg>
           个人中心
         </button>
+        <button 
+          v-if="currentUser?.username === 'admin'"
+          :class="{ active: currentPage === 'admin' }" 
+          @click="currentPage = 'admin'"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          管理后台
+        </button>
       </nav>
       <FitnessRecord 
         v-if="currentPage === 'record'"
@@ -88,6 +99,10 @@
         :user="currentUser"
         @profile-updated="handleProfileUpdated"
       />
+      <AdminPanel 
+        v-else-if="currentPage === 'admin'"
+        @logout="handleLogout"
+      />
     </div>
   </div>
 </template>
@@ -100,6 +115,7 @@ import FitnessPlan from './components/FitnessPlan.vue'
 import FitnessAI from './components/FitnessAI.vue'
 import DietRecord from './components/DietRecord.vue'
 import UserProfile from './components/UserProfile.vue'
+import AdminPanel from './components/AdminPanel.vue'
 
 const currentUser = ref(null)
 const currentPage = ref('record')

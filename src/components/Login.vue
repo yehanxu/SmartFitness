@@ -269,7 +269,8 @@ const handleSubmit = async () => {
         gender: data.user.gender,
         real_name: data.user.real_name,
         favorite_sports: data.user.favorite_sports,
-        bio: data.user.bio
+        bio: data.user.bio,
+        avatar: data.user.avatar || ''
       }
       localStorage.setItem('currentUser', JSON.stringify(user))
       emit('loginSuccess', user)
